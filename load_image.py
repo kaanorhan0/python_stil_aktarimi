@@ -11,9 +11,9 @@ def resmi_yukle_ve_hazirla(image_file, max_size=400):
     size = max_size if max(image.size) > max_size else max(image.size)
     
     transform = transforms.Compose([
-        transforms.Resize((size, size)), # Kare yapıyoruz
+        transforms.Resize((size, size)), 
         transforms.ToTensor(),
-        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)) # VGG19 standartları
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)) 
     ])
     
     
