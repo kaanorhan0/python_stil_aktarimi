@@ -1,176 +1,148 @@
 import streamlit as st
-from PIL import Image
 import time
-import base64
 import io
+from PIL import Image, ImageFilter, ImageEnhance
 
-# --- 1. SAYFA VE PERFORMANS AYARLARI ---
+
 st.set_page_config(
-    page_title="Neural Art Studio Pro",
+    page_title="Sanatsal Stil Aktarımı",
     page_icon="🎨",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# --- 2. YAPAY ZEKA MOTORU VE ÖNBELLEKLEME (CACHING) ---
-# Gerçek model eklendiğinde sistemin çökmemesi için modeli RAM'de tutar
-@st.cache_resource(show_spinner="Yapay Zeka Modeli Belleğe Yükleniyor...")
-def load_vgg19_model():
-    """Önceden eğitilmiş VGG19 özellik çıkarım ağını başlatır."""
-    time.sleep(1) # Simülasyon
-    return "VGG19_Model_Loaded"
 
-# --- 3. PROFESYONEL CSS ---
-def apply_enterprise_css(bg_image_name: str):
-    """Karanlık mod ağırlıklı, cam efektli kurumsal arayüz tasarımı."""
-    try:
-        with open(bg_image_name, 'rb') as f:
-            data = f.read()
-        bin_str = base64.b64encode(data).decode()
-        
-        custom_css = f"""
-        <style>
-            /* Derin Karartılmış Arka Plan */
-            .stApp {{
-                background-image: linear-gradient(rgba(5, 5, 8, 0.90), rgba(5, 5, 8, 0.90)), url("data:image/jpeg;base64,{bin_str}");
-                background-size: cover;
-                background-repeat: no-repeat;
-                background-attachment: fixed;
-            }}
-            
-            /* Üstteki gereksiz boşlukları ve menüleri sil */
-            .block-container {{ padding-top: 2rem !important; }}
-            #MainMenu {{visibility: hidden;}}
-            header {{visibility: hidden;}}
-            footer {{visibility: hidden;}}
-            
-            /* Modern Panel Tasarımı */
-            [data-testid="stSidebar"] {{
-                background-color: rgba(15, 23, 42, 0.6) !important;
-                backdrop-filter: blur(15px);
-                border-right: 1px solid rgba(255, 255, 255, 0.05);
-            }}
-            
-            [data-testid="stVerticalBlock"] > div > div[data-testid="stVerticalBlock"] {{
-                background: rgba(30, 41, 59, 0.3) !important;
-                backdrop-filter: blur(12px);
-                border-radius: 12px;
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                padding: 1.5rem;
-            }}
-            
-            /* İndirme Butonu Vurgusu */
-            [data-testid="stDownloadButton"] button {{
-                border: 1px solid #3b82f6 !important;
-                color: #3b82f6 !important;
-            }}
-            [data-testid="stDownloadButton"] button:hover {{
-                background-color: #3b82f6 !important;
-                color: white !important;
-            }}
-        </style>
-        """
-        st.markdown(custom_css, unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.error(f"⚠️ '{bg_image_name}' bulunamadı!")
-
-# --- 4. GÖRÜNTÜ İŞLEME SİMÜLASYONU ---
-def process_neural_transfer(image: Image.Image, style: str, style_weight: int) -> Image.Image:
-    """Gerçek zamanlı stil aktarım işlem hattı (Pipeline)."""
+def css_ekle():
+    st.markdown("""
+    <style>
+    /* Karanlık tema arka planı ve metin renkleri */
+    .stApp {
+        background-color: #0E1117;
+        color: #FAFAFA;
+    }
     
-    # Modern Durum Bildirici (st.status)
-    with st.status("Yapay Zeka İşlem Hattı Başlatıldı...", expanded=True) as status:
-        st.write("🔍 Görüntü matrislere (tensör) dönüştürülüyor...")
-        time.sleep(0.5)
-        
-        st.write("🧠 VGG19 üzerinden içerik özellikleri (content features) çıkarılıyor...")
-        time.sleep(0.8)
-        
-        st.write(f"🎨 '{style}' stili için Gram matrisleri hesaplanıyor...")
-        st.write(f"⚙️ Stil yoğunluğu: %{style_weight} olarak uygulandı.")
-        time.sleep(0.8)
-        
-        st.write("✨ Piksel optimizasyonu tamamlanıyor...")
-        time.sleep(0.5)
-        
-        status.update(label="Sanatsal Dönüşüm Başarıyla Tamamlandı!", state="complete", expanded=False)
-        
-    return image # Gerçekte modelin çıktısı olacak
+    /* Sağ üstteki gereksiz menüleri gizle */
+    #MainMenu, header, footer {visibility: hidden;}
 
-# --- 5. İNDİRME YARDIMCISI ---
-def convert_image_to_bytes(img: Image.Image):
-    """Görüntüyü indirilebilir formata (bytes) çevirir."""
+    /* Buton tasarımı (Vurgulu ve şık) */
+    .stButton > button {
+        background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+        color: white;
+        border-radius: 8px;
+        font-weight: 600;
+        border: none;
+        padding: 10px;
+    }
+    .stButton > button:hover {
+        filter: brightness(1.2);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+def resmi_indirilebilir_yap(img: Image.Image) -> bytes:
+    """Üretilen fotoğrafı indirme butonuna uygun formata çevirir."""
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
 
-# --- ANA UYGULAMA MİMARİSİ ---
-def main():
-    apply_enterprise_css('gece.jpeg')
-    _ = load_vgg19_model() # Arka planda modeli hazırla
+def yapay_zeka_simulasyonu(icerik_resmi: Image.Image, stil_adi: str):
+    """Gerçek PyTorch modeli eklenene kadar çalışan, ilerleme çubuklu simülasyon."""
+    ilerleme_cubugu = st.progress(0, text="Yapay zeka modeli başlatılıyor...")
 
-    # --- YAN MENÜ (SIDEBAR) KONTROL PANELİ ---
-    with st.sidebar:
-        st.image("https://cdn-icons-png.flaticon.com/512/2000/2000494.png", width=50) # Şık bir ikon
-        st.markdown("## ⚙️ Sistem Paneli")
-        st.markdown("Yapay zeka parametrelerini buradan yapılandırın.")
-        st.divider()
-        
-        st.markdown("**1. Girdi Ayarları**")
-        yuklenen_dosya = st.file_uploader("Fotoğraf Yükle", type=["jpg", "png"], label_visibility="collapsed")
-        
-        st.markdown("**2. Stil Referansı**")
-        secilen_stil = st.selectbox(
-            "Stil Seçimi",
-            ("🌌 Van Gogh - Yıldızlı Gece", "⬛ Picasso - Kübizm", "🌅 Monet - Gündoğumu"),
-            label_visibility="collapsed"
-        )
-        
-        st.divider()
-        # Gelişmiş Mühendislik Ayarları
-        with st.expander("🛠️ Gelişmiş Hiperparametreler"):
-            st.slider("Çözünürlük Kalitesi", 256, 1024, 512, step=128, help="Modelin işleyeceği tensör boyutu.")
-            stil_yogunlugu = st.slider("Stil Ağırlığı (Style Weight)", 10, 100, 75, help="Uygulanan stilin orijinal fotoğrafı ne kadar ezeceğini belirler.")
-            st.slider("Optimizasyon Adımı (Epoch)", 10, 100, 30, help="L-BFGS iterasyon sayısı.")
+    # Aşama 1
+    time.sleep(0.5)
+    ilerleme_cubugu.progress(25, text="Fotoğraf matrislere (tensör) dönüştürülüyor...")
 
-    # --- ANA ÇALIŞMA ALANI (MAIN WORKSPACE) ---
-    st.markdown("<h1 style='text-align: left; padding-bottom: 0;'>✨ Neural Art Studio <span style='font-size: 0.5em; color: #3b82f6; border: 1px solid #3b82f6; padding: 2px 8px; border-radius: 10px; vertical-align: middle;'>PRO</span></h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #94A3B8;'>Gerçek Zamanlı Evrişimli Sinir Ağları (CNN) Laboratuvarı</p>", unsafe_allow_html=True)
+    # Aşama 2
+    time.sleep(0.8)
+    ilerleme_cubugu.progress(60, text="VGG19 modeli üzerinden özellikler çıkarılıyor...")
+
+    # Aşama 3
+    time.sleep(0.7)
+    ilerleme_cubugu.progress(90, text=f"{stil_adi} dokuları hesaplanıyor...")
+
     
+    sonuc = icerik_resmi.copy().convert("RGB")
+    if "Van Gogh" in stil_adi:
+        sonuc = sonuc.filter(ImageFilter.GaussianBlur(radius=1.5))
+        sonuc = ImageEnhance.Color(sonuc).enhance(1.8)
+    elif "Picasso" in stil_adi:
+        sonuc = sonuc.filter(ImageFilter.FIND_EDGES)
+    elif "Monet" in stil_adi:
+        sonuc = sonuc.filter(ImageFilter.SMOOTH_MORE)
+        sonuc = ImageEnhance.Color(sonuc).enhance(1.2)
+
+    time.sleep(0.5)
+    ilerleme_cubugu.progress(100, text="İşlem tamamlandı!")
+    time.sleep(0.4)
+    ilerleme_cubugu.empty()
+
+    return sonuc
+
+
+def main():
+    css_ekle()
+
+    
+    with st.sidebar:
+        st.markdown("<h2 style='text-align: center;'>🎨 Neural Studio</h2>", unsafe_allow_html=True)
+        st.caption("<p style='text-align: center;'>Stil Aktarım Laboratuvarı</p>", unsafe_allow_html=True)
+        st.divider()
+
+        st.subheader("1. Girdi Görseli")
+        yuklenen_dosya = st.file_uploader("Fotoğraf yükleyin", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+
+        st.write("") 
+
+        st.subheader("2. Sanatsal Stil")
+        stiller = ["🌌 Van Gogh - Yıldızlı Gece", "⬛ Picasso - Kübizm", "🌅 Monet - Gündoğumu"]
+        secilen_stil = st.selectbox("Stil seçin", stiller, label_visibility="collapsed")
+
+        st.divider()
+
+        
+        buton_aktif_mi = yuklenen_dosya is not None
+        baslat_butonu = st.button("🚀 Dönüşümü Başlat", disabled=not buton_aktif_mi, use_container_width=True)
+
+    
+    st.title("✨ Gerçek Zamanlı Sanatsal Stil Aktarımı")
+    st.write("Yüklediğiniz fotoğrafı derin öğrenme (CNN) modelleriyle ünlü bir tabloya dönüştürün.")
+
     if yuklenen_dosya is None:
-        # Boş Durum
-        st.write("")
-        st.info("Sistemi başlatmak için sol panelden bir fotoğraf yükleyin ve parametreleri ayarlayın.")
+        st.info("👈 Başlamak için sol panelden bir fotoğraf yükleyin.")
     else:
         orijinal_resim = Image.open(yuklenen_dosya)
-        
-        col_img, col_action = st.columns([3, 1])
-        with col_img:
-            st.image(orijinal_resim, caption="Orijinal Girdi Görseli", use_container_width=True)
-        with col_action:
-            st.markdown("### İşlem Merkezi")
-            st.caption("GPU Kullanımı: **Hazır**")
-            baslat_butonu = st.button("🚀 Modeli Çalıştır", use_container_width=True, type="primary")
 
+        
         if baslat_butonu:
             st.divider()
             
-            # İşlem Hattı
-            sonuc_resmi = process_neural_transfer(orijinal_resim, secilen_stil, stil_yogunlugu)
             
-            # Sonuç Gösterimi ve İndirme
-            st.markdown(f"### 🎨 Dönüştürülmüş Sonuç ({secilen_stil.split(' ')[1]})")
-            st.image(sonuc_resmi, use_container_width=True)
+            sonuc_resmi = yapay_zeka_simulasyonu(orijinal_resim, secilen_stil)
+
+            st.success("✅ Sanatsal dönüşüm başarıyla tamamlandı!")
+
             
-            # İndirme Butonu
-            img_bytes = convert_image_to_bytes(sonuc_resmi)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(orijinal_resim, caption="Orijinal Fotoğraf", use_container_width=True)
+            with col2:
+                st.image(sonuc_resmi, caption=f"Sonuç ({secilen_stil.split(' - ')[0][1:]})", use_container_width=True)
+
+            
+            st.divider()
             st.download_button(
                 label="📥 Yüksek Çözünürlüklü Olarak İndir (PNG)",
-                data=img_bytes,
-                file_name="neural_art_ciktisi.png",
-                mime="image/png",
-                use_container_width=True
+                data=resmi_indirilebilir_yap(sonuc_resmi),
+                file_name="sanatsal_sonuc.png",
+                mime="image/png"
             )
+
+        
+        else:
+            st.subheader("Orijinal Fotoğraf Önizlemesi")
+            st.image(orijinal_resim, use_container_width=True)
+            st.warning("Dönüşümü başlatmak için sol menüdeki **'Dönüşümü Başlat'** butonuna tıklayın.")
 
 if __name__ == "__main__":
     main()
