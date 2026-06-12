@@ -84,7 +84,7 @@ def process_neural_transfer(image_data, style_name, cozunurluk, epoch_sayisi, vg
     """Kişi 1, Kişi 2 ve Kişi 3'ün görevlerini birbirine bağlayan ana zincir."""
     
     # 1. Seçilen stile göre doğru dosyayı belirle
-    stil_dosyasi = "gece.jpeg" # Varsayılan
+    stil_dosyasi = "VanGogh.jpeg" # Varsayılan
     if "Picasso" in style_name:
         stil_dosyasi = "picasso.jpg" 
     elif "Monet" in style_name:
@@ -127,7 +127,7 @@ def convert_image_to_bytes(img: Image.Image):
 
 # --- ANA UYGULAMA MİMARİSİ ---
 def main():
-    apply_enterprise_css('gece.jpeg')
+    apply_enterprise_css('VanGogh.jpeg')
     
     # DİKKAT: Gerçek modeli yüklüyoruz ve vgg_model adlı değişkene kaydediyoruz
     vgg_model = load_vgg19_model() 
