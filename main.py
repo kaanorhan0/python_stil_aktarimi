@@ -4,12 +4,13 @@ import time
 import base64
 import io
 from PIL import Image
+import torchvision.models as models # VGG19 İÇİN YENİ EKLENDİ
 
 # --- ENTEGRASYON İŞLEMİ ---
 from load_image import load_and_preprocess_image, tensor_to_image
 from model_motoru import stili_aktar
-# --- 1. SAYFA VE PERFORMANS AYARLARI ---
 
+# --- 1. SAYFA VE PERFORMANS AYARLARI ---
 st.set_page_config(
     page_title="Neural Art Studio Pro",
     page_icon="🎨",
@@ -18,11 +19,16 @@ st.set_page_config(
 )
 
 # --- 2. YAPAY ZEKA MOTORU VE ÖNBELLEKLEME (CACHING) ---
-@st.cache_resource(show_spinner="Yapay Zeka Modeli Belleğe Yükleniyor...")
+@st.cache_resource(show_spinner="VGG19 Yapay Zeka Modeli Belleğe Yükleniyor (Sadece ilk girişte çalışır)...")
 def load_vgg19_model():
-    """Önceden eğitilmiş VGG19 özellik çıkarım ağını hazırda tutar."""
-    time.sleep(0.5) 
-    return "VGG19_Hazir"
+    """Önceden eğitilmiş VGG19 ağını gerçek anlamda RAM'e yükler ve bir daha silmez."""
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Pretrained modeli çekiyoruz
+    vgg = models.vgg19(pretrained=True).features.to(device).eval()
+    # Modelin ağırlıklarını donduruyoruz (Gereksiz işlem gücü harcamaması için)
+    for param in vgg.parameters():
+        param.requires_grad = False
+    return vgg
 
 # --- 3. PROFESYONEL CSS VE ARKA PLAN ---
 def apply_enterprise_css(bg_image_name: str):
@@ -74,8 +80,7 @@ def apply_enterprise_css(bg_image_name: str):
         st.error(f"⚠️ '{bg_image_name}' bulunamadı! Lütfen arkaplan resmini proje klasörüne koyun.")
 
 # --- 4. GERÇEK ZAMANLI STİL AKTARIM İŞLEM HATTI (PIPELINE) ---
-
-def process_neural_transfer(image_data, style_name, cozunurluk, epoch_sayisi):
+def process_neural_transfer(image_data, style_name, cozunurluk, epoch_sayisi, vgg_model):
     """Kişi 1, Kişi 2 ve Kişi 3'ün görevlerini birbirine bağlayan ana zincir."""
     
     # 1. Seçilen stile göre doğru dosyayı belirle
@@ -98,14 +103,22 @@ def process_neural_transfer(image_data, style_name, cozunurluk, epoch_sayisi):
             st.stop() # Resmi bulamazsa sistemi güvenli şekilde durdur
             
         st.write(f"🧠 [Kişi 1 Modülü] VGG19 üzerinden özellikler çıkarılıyor ve {epoch_sayisi} adımda optimize ediliyor...")
-        output_tensor = stili_aktar(content_tensor, style_tensor, adim_sayisi=epoch_sayisi)
         
+        # BONUS: İlerleme Çubuğu!
+        my_bar = st.progress(0, text="Yapay Zeka Çiziyor: %0 Tamamlandı")
+        
+        # Model artık dışarıdan vgg_model değişkeniyle geliyor
+        output_tensor = stili_aktar(content_tensor, style_tensor, vgg_model, adim_sayisi=epoch_sayisi, ilerleme_cubugu=my_bar)
+        
+        my_bar.empty() # İşlem bitince barı ekrandan sil
+
         st.write("✨ [Kişi 2 Modülü] Piksel optimizasyonu tamamlandı, tensör görselleştiriliyor...")
         final_image = tensor_to_image(output_tensor)
         
         status.update(label="Sanatsal Dönüşüm Başarıyla Tamamlandı!", state="complete", expanded=False)
         
     return final_image
+
 # --- 5. İNDİRME YARDIMCISI ---
 def convert_image_to_bytes(img: Image.Image):
     buf = io.BytesIO()
@@ -115,7 +128,9 @@ def convert_image_to_bytes(img: Image.Image):
 # --- ANA UYGULAMA MİMARİSİ ---
 def main():
     apply_enterprise_css('gece.jpeg')
-    _ = load_vgg19_model() # Modeli belleğe al
+    
+    # DİKKAT: Gerçek modeli yüklüyoruz ve vgg_model adlı değişkene kaydediyoruz
+    vgg_model = load_vgg19_model() 
     
     # --- YAN MENÜ (SIDEBAR) KONTROL PANELİ ---
     with st.sidebar:
@@ -157,8 +172,9 @@ def main():
         if baslat_butonu:
             st.divider()
             
-            # Üç kişinin kodunu çalıştıran entegre fonksiyon tetikleniyor
-            sonuc_resmi = process_neural_transfer(yuklenen_dosya, secilen_stil, cozunurluk, epoch_sayisi)
+            # Üç kişinin kodunu çalıştıran entegre fonksiyon tetikleniyor. 
+            # vgg_model'i de artık buraya ekledik!
+            sonuc_resmi = process_neural_transfer(yuklenen_dosya, secilen_stil, cozunurluk, epoch_sayisi, vgg_model)
             
             st.success("✅ Sanatsal dönüşüm başarıyla tamamlandı!")
             
