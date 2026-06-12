@@ -100,6 +100,9 @@ def stili_aktar(icerik_tensoru, stil_tensoru, vgg_model, adim_sayisi=50):
         
         optimizer.zero_grad()      
         toplam_kayip.backward()    
-        optimizer.step()           
+        optimizer.step()     
+
+        if ilerleme_cubugu is not None:
+            ilerleme_cubugu.progress((adim + 1) / adim_sayisi, text=f"Yapay Zeka Çiziyor: %{int(((adim+1)/adim_sayisi)*100)} Tamamlandı")      
         
     return hedef_tensor.detach()
