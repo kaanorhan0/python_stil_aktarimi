@@ -58,7 +58,7 @@ def ozellikleri_cikar(image, model):
 
 # Sadece stili_aktar fonksiyonunu aşağıdakiyle değiştirin, diğer yerler (gram_matrix vb) aynı kalsın.
 
-def stili_aktar(icerik_tensoru, stil_tensoru, vgg_model, adim_sayisi=50):
+def stili_aktar(icerik_tensoru, stil_tensoru, vgg_model, adim_sayisi=50, ilerleme_cubugu=None):
     """
     İçerik ve Stil tensörlerini alarak optimizasyon döngüsünü çalıştırır.
     NOT: vgg_model artık dışarıdan (main.py'den) hazır olarak geliyor.
@@ -68,7 +68,6 @@ def stili_aktar(icerik_tensoru, stil_tensoru, vgg_model, adim_sayisi=50):
     icerik_tensoru = icerik_tensoru.to(device)
     stil_tensoru = stil_tensoru.to(device)
     
-    # Orijinal resmi kopyalayıp, değiştirilebilir (requires_grad=True) yapıyoruz
     hedef_tensor = icerik_tensoru.clone().requires_grad_(True).to(device)
     
     stil_ozellikleri = ozellikleri_cikar(stil_tensoru, vgg_model)
@@ -102,4 +101,7 @@ def stili_aktar(icerik_tensoru, stil_tensoru, vgg_model, adim_sayisi=50):
         toplam_kayip.backward()    
         optimizer.step()           
         
+        if ilerleme_cubugu is not None:
+            ilerleme_cubugu.progress((adim + 1) / adim_sayisi, text=f"Yapay Zeka Çiziyor: %{int(((adim+1)/adim_sayisi)*100)} Tamamlandı")
+            
     return hedef_tensor.detach()
